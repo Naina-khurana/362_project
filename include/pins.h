@@ -10,7 +10,7 @@
 #define PINS_H
 
 // ---------- ADC: flex sensor ----------
-#define FLEX_PIN        40      // GP40
+#define FLEX_PIN        26      // GP40
 #define FLEX_ADC_CH     0       // GP40 = ADC0 (channel = pin - 40)
 
 // ---------- I2C: MPU6050 IMU ----------
