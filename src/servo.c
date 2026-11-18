@@ -1,52 +1,53 @@
-// servo.c — PWM driver for the MG90S servo
-//
-// Servo expects a 50 Hz signal (20 ms period). Pulse width sets the angle.
-// PWM counter runs at 1 MHz so 1 count = 1 us, which makes the math easy.
-//
-// Power the servo from a SEPARATE 5V supply and tie its GND to Proton GND.
-
+#include "servo.h"
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
-#include "pins.h"
-#include "servo.h"
 
-// Tune these to the printed finger's real end stops so the servo never
-// strains the linkage. MG90S full range is roughly 500-2400 us.
-#define SERVO_MIN_US    1000
-#define SERVO_MAX_US    2000
-#define SERVO_MAX_DEG   180.0f
-
-#define SERVO_PERIOD_US 20000   // 50 Hz
-
-static uint slice;
-static uint channel;
+static float current_norm = 0.0f;
 
 void servo_init(void) {
+    // 1. Route SERVO_PIN to the PWM peripheral
     gpio_set_function(SERVO_PIN, GPIO_FUNC_PWM);
-    slice   = pwm_gpio_to_slice_num(SERVO_PIN);
-    channel = pwm_gpio_to_channel(SERVO_PIN);
 
-    // sys clock (150 MHz) / divider -> 1 MHz tick
-    float div = (float)clock_get_hz(clk_sys) / 1000000.0f;
-    pwm_set_clkdiv(slice, div);
-    pwm_set_wrap(slice, SERVO_PERIOD_US - 1);
+    // 2. Automatically resolve the PWM slice for SERVO_PIN (GPIO 15 -> Slice 7)
+    uint slice_num = pwm_gpio_to_slice_num(SERVO_PIN);
 
-    // start centered
-    pwm_set_chan_level(slice, channel, (SERVO_MIN_US + SERVO_MAX_US) / 2);
-    pwm_set_enabled(slice, true);
+    // 3. Set clock divider so 1 PWM tick = 1 microsecond (1 MHz)
+    float clkdiv = (float)clock_get_hz(clk_sys) / 1000000.0f;
+
+    pwm_config config = pwm_get_default_config();
+    pwm_config_set_clkdiv(&config, clkdiv);
+    pwm_config_set_wrap(&config, 19999); // 20,000 ticks = 20 ms = 50 Hz
+
+    // 4. Load configuration and enable PWM slice
+    pwm_init(slice_num, &config, true);
+
+    // 5. Start at a safe center position
+    servo_set_pulse_us(SERVO_CENTER_US);
 }
 
-void servo_set_pulse_us(uint16_t us) {
-    if (us < SERVO_MIN_US) us = SERVO_MIN_US;
-    if (us > SERVO_MAX_US) us = SERVO_MAX_US;
-    pwm_set_chan_level(slice, channel, us);
+void servo_set_pulse_us(uint16_t pulse_us) {
+    if (pulse_us < SERVO_MIN_US) pulse_us = SERVO_MIN_US;
+    if (pulse_us > SERVO_MAX_US) pulse_us = SERVO_MAX_US;
+
+    // Since 1 tick = 1 us, channel level maps 1:1 to microseconds
+    pwm_set_gpio_level(SERVO_PIN, pulse_us);
 }
 
-void servo_set_angle(float deg) {
-    if (deg < 0.0f) deg = 0.0f;
-    if (deg > SERVO_MAX_DEG) deg = SERVO_MAX_DEG;
-    uint16_t us = SERVO_MIN_US +
-        (uint16_t)((deg / SERVO_MAX_DEG) * (SERVO_MAX_US - SERVO_MIN_US));
-    servo_set_pulse_us(us);
+void servo_set_angle(float angle_deg) {
+    if (angle_deg < 0.0f)   angle_deg = 0.0f;
+    if (angle_deg > 180.0f) angle_deg = 180.0f;
+
+    uint16_t pulse_us = (uint16_t)(SERVO_MIN_US + (angle_deg / 180.0f) * (SERVO_MAX_US - SERVO_MIN_US));
+    servo_set_pulse_us(pulse_us);
+}
+
+void servo_set_normalized(float norm, float alpha) {
+    if (norm < 0.0f) norm = 0.0f;
+    if (norm > 1.0f) norm = 1.0f;
+
+    current_norm = (alpha * norm) + ((1.0f - alpha) * current_norm);
+
+    uint16_t pulse_us = (uint16_t)(SERVO_MIN_US + current_norm * (SERVO_MAX_US - SERVO_MIN_US));
+    servo_set_pulse_us(pulse_us);
 }

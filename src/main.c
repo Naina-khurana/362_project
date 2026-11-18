@@ -74,13 +74,9 @@ int main(void) {
         if (loop_count % TFT_EVERY_N == 0) {
             tft_update(bend, imu_get_pitch(), imu_get_roll(), angle, mode);
         }
+        sleep_ms(10);
 
-        if (loop_count % PRINT_EVERY_N == 0) {
-            printf("%s bend=%.2f pitch=%6.1f roll=%6.1f servo=%5.1f\n",
-                   mode == MODE_FLEX ? "FLEX" : "TILT",
-                   bend, imu_get_pitch(), imu_get_roll(), angle);
-        }
-
-        sleep_ms(LOOP_MS);
+        servo_init();                   // Run once at startup
+        servo_set_normalized(val, 0.2f);
     }
 }
