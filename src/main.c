@@ -47,5 +47,8 @@ int main(void) {
             printf("bend=%.2f  angle=%.1f\n", filtered, filtered * 180.0f);
         }
         sleep_ms(10);
+
+        servo_init();                   // Run once at startup
+        servo_set_normalized(val, 0.2f);
     }
 }
