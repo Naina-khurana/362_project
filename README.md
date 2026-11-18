@@ -9,9 +9,23 @@ Wearable glove (flex sensor + MPU6050) that drives a 3D-printed robotic finger w
 | `include/pins.h` | Shared pin map. Change pins here only |
 | `src/flex.c` | ADC driver for the flex sensor |
 | `src/servo.c` | PWM driver for the servo |
-| `src/main.c` | Main loop (currently flex to servo test) |
+| `src/imu.c` | I2C driver for the MPU6050, pitch/roll with a complementary filter |
+| `src/tft.c` | SPI display, wraps the course `lcd.c` library |
+| `src/button.c` | GPIO mode button with debounce |
+| `src/main.c` | Main loop, FLEX and TILT modes |
 
-Still to add `imu.c` (I2C), `tft.c` (SPI), `button.c` (GPIO).
+## TFT library setup
+
+Copy `lcd.c` into `src/` and `lcd.h` into `include/` from the course project-lcd zip. In `lcd.c`, replace the three `x` defines with
+
+```c
+#include "pins.h"
+#define CS_NUM    PIN_CS
+#define DC_NUM    PIN_DC
+#define RESET_NUM PIN_nRESET
+```
+
+Until those files are added, `tft.c` builds as empty stubs so everything else still runs.
 
 ## Pin map
 
